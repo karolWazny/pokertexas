@@ -106,7 +106,12 @@ func (table *Table) StartGame() Game {
 }
 
 func (table *Table) DumpState() TableState {
-	return TableState{}
+	return TableState{
+		Table: TableDto{
+			SmallBlind: table.smallBlind,
+			BigBlind:   table.bigBlind,
+		},
+	}
 }
 
 type Game struct {
