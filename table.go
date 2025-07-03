@@ -47,7 +47,7 @@ func (table *Table) StartGame() Game {
 		deck = smallerDeck
 		texasPlayers[i] = &TexasPlayer{
 			player:     player,
-			hand:       hand,
+			hand:       hand.Cards,
 			hasFolded:  false,
 			currentPot: 0,
 		}

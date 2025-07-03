@@ -1,13 +1,14 @@
 package pokertexas
 
 import (
+	"fmt"
 	"github.com/karolWazny/pokergo"
 	"strconv"
 )
 
 type TexasPlayer struct {
 	player          *Player
-	hand            pokergo.Deck
+	hand            []pokergo.Card
 	bestCombination []pokergo.Card
 	bestHand        *pokergo.Hand
 	hasFolded       bool
@@ -23,7 +24,7 @@ func (texasPlayer TexasPlayer) GetPublicInfo() TexasPlayerPublicInfo {
 		CurrentPot: texasPlayer.currentPot,
 	}
 	if !texasPlayer.hasFolded && texasPlayer.bestHand != nil {
-		playerInfo.Cards = texasPlayer.hand.Cards
+		playerInfo.Cards = texasPlayer.hand
 		playerInfo.BestCards = texasPlayer.bestCombination
 		playerInfo.Hand = texasPlayer.bestHand
 	}
@@ -31,5 +32,5 @@ func (texasPlayer TexasPlayer) GetPublicInfo() TexasPlayerPublicInfo {
 }
 
 func (texasPlayer TexasPlayer) String() string {
-	return texasPlayer.player.String() + " " + texasPlayer.hand.String() + " " + strconv.FormatInt(texasPlayer.currentPot, 10)
+	return texasPlayer.player.String() + " " + fmt.Sprintf("%v", texasPlayer.hand) + " " + strconv.FormatInt(texasPlayer.currentPot, 10)
 }

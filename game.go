@@ -37,7 +37,7 @@ func (game *Game) Fold() error {
 		return errors.New("fold action not available")
 	}
 	game.unsafeGetCurrentPlayer().hasFolded = true
-	game.unsafeGetCurrentPlayer().hand = pokergo.DeckOf()
+	game.unsafeGetCurrentPlayer().hand = make([]pokergo.Card, 0)
 	if game.playersInGame() == 1 {
 		// finish game
 		lastActivePlayerIndex := slices.IndexFunc(game.players, func(player *TexasPlayer) bool {
@@ -240,7 +240,7 @@ func (game *Game) determineBestHandForEachPlayer() {
 
 func (game *Game) determineBestHandForPlayer(player *TexasPlayer) {
 	if !player.hasFolded {
-		allCards := append(game.community, player.hand.Cards...)
+		allCards := append(game.community, player.hand...)
 		bestHand, bestCombination := game.findBestHand(allCards)
 		player.bestHand = &bestHand
 		player.bestCombination = bestCombination
