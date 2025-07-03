@@ -7,9 +7,12 @@ type TableState struct {
 }
 
 type GameDto struct {
+	Players []string
 }
 
 type PlayerDto struct {
+	Name  string
+	Money int64
 }
 
 type TableDto struct {

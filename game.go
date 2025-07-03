@@ -2,117 +2,10 @@ package pokertexas
 
 import (
 	"errors"
-	"fmt"
 	"github.com/karolWazny/pokergo"
 	"gonum.org/v1/gonum/stat/combin"
 	"slices"
-	"strconv"
-	"strings"
 )
-
-type TexasHoldEmAction string
-
-const (
-	check TexasHoldEmAction = "check"
-	fold                    = "fold"
-	call                    = "call"
-	raise                   = "raise"
-)
-
-type TexasHoldEmRound int8
-
-const (
-	PREFLOP TexasHoldEmRound = iota
-	FLOP
-	TURN
-	RIVER
-	FINISHED
-)
-
-func (round TexasHoldEmRound) String() string {
-	switch round {
-	case PREFLOP:
-		return "preflop"
-	case FLOP:
-		return "flop"
-	case TURN:
-		return "turn"
-	case RIVER:
-		return "river"
-	case FINISHED:
-		return "finished"
-	default:
-		return "unknown"
-	}
-}
-
-type Table struct {
-	players     []*Player
-	smallBlind  int64
-	bigBlind    int64
-	dealerIndex int
-}
-
-func (table *Table) Players() []*Player {
-	return table.players
-}
-
-func NewTable(smallBlind int64, bigBlind int64) Table {
-	return Table{
-		players:     make([]*Player, 0),
-		smallBlind:  smallBlind,
-		bigBlind:    bigBlind,
-		dealerIndex: -1,
-	}
-}
-
-func (table *Table) AddPlayer(player *Player) error {
-	for _, existingPlayer := range table.players {
-		if strings.ToUpper(existingPlayer.Name()) == strings.ToUpper(player.Name()) {
-			return errors.New("player already exists")
-		}
-	}
-	table.players = append(table.players, player)
-	return nil
-}
-
-func (table *Table) StartGame() Game {
-	table.dealerIndex = (table.dealerIndex + 1) % len(table.players)
-	orderedPlayers := append(table.players[table.dealerIndex+1:], table.players[:table.dealerIndex+1]...)
-	texasPlayers := make([]*TexasPlayer, len(orderedPlayers))
-	deck := pokergo.CreateDeck().Shuffled()
-	for i, player := range orderedPlayers {
-		hand, smallerDeck := deck.Deal(2)
-		deck = smallerDeck
-		texasPlayers[i] = &TexasPlayer{
-			player:     player,
-			hand:       hand,
-			hasFolded:  false,
-			currentPot: 0,
-		}
-	}
-	texasPlayers[0].currentPot = table.smallBlind
-	texasPlayers[0].player.money -= table.smallBlind
-	texasPlayers[1].currentPot = table.bigBlind
-	texasPlayers[1].player.money -= table.bigBlind
-	return Game{
-		players:           texasPlayers,
-		lastBet:           table.bigBlind,
-		deck:              deck,
-		activePlayerIndex: 2,
-		community:         make([]pokergo.Card, 0),
-		round:             PREFLOP,
-	}
-}
-
-func (table *Table) DumpState() TableState {
-	return TableState{
-		Table: TableDto{
-			SmallBlind: table.smallBlind,
-			BigBlind:   table.bigBlind,
-		},
-	}
-}
 
 type Game struct {
 	players           []*TexasPlayer
@@ -284,28 +177,7 @@ func (game *Game) nextPlayer() {
 func (game *Game) finishRound() {
 	if game.round == RIVER {
 		// trigger showdown
-		for _, player := range game.players {
-			if !player.hasFolded {
-				allCards := append(game.community, player.hand.Cards...)
-				bestHand, bestCombination := game.findBestHand(allCards)
-				player.bestHand = &bestHand
-				player.bestCombination = bestCombination
-			}
-		}
-		bestPlayer := &TexasPlayer{}
-		bestHand := pokergo.CreateLowGuardian()
-		for _, player := range game.players {
-			if !player.hasFolded {
-				comparisonResult := pokergo.CompareHands(bestHand, *player.bestHand)
-				if comparisonResult != pokergo.FirstWins {
-					bestPlayer = player
-					bestHand = *player.bestHand
-				}
-			}
-		}
-		game.winner = bestPlayer
-		game.round = FINISHED
-		game.transferPotToWinner()
+		game.showdown()
 		return
 	}
 	game.activePlayerIndex = len(game.players) - 1
@@ -313,16 +185,66 @@ func (game *Game) finishRound() {
 	for _, player := range game.players {
 		player.hasPlayed = false
 	}
+	game.showCommunityCards()
+	game.round++
+}
+
+func (game *Game) showdown() {
+	game.determineBestHandForEachPlayer()
+	game.findWinner()
+	game.transferPotToWinner()
+	game.round = FINISHED
+}
+
+func (game *Game) showCommunityCards() {
 	_, game.deck = game.deck.Deal(1)
+	cardsToShow := game.numberOfCardsToShow()
+	game.dealCardsToCommunity(cardsToShow)
+}
+
+func (game *Game) numberOfCardsToShow() int {
 	cardsToShow := 1
 	isFlop := game.round == PREFLOP
 	if isFlop {
 		cardsToShow = 3
 	}
+	return cardsToShow
+}
+
+func (game *Game) dealCardsToCommunity(cardsToShow int) {
 	newCards, deck := game.deck.Deal(cardsToShow)
 	game.deck = deck
 	game.community = append(game.CommunityCards(), newCards.Cards...)
-	game.round++
+}
+
+func (game *Game) findWinner() {
+	bestPlayer := &TexasPlayer{}
+	bestHand := pokergo.CreateLowGuardian()
+	for _, player := range game.players {
+		if !player.hasFolded {
+			comparisonResult := pokergo.CompareHands(bestHand, *player.bestHand)
+			if comparisonResult != pokergo.FirstWins {
+				bestPlayer = player
+				bestHand = *player.bestHand
+			}
+		}
+	}
+	game.winner = bestPlayer
+}
+
+func (game *Game) determineBestHandForEachPlayer() {
+	for _, player := range game.players {
+		game.determineBestHandForPlayer(player)
+	}
+}
+
+func (game *Game) determineBestHandForPlayer(player *TexasPlayer) {
+	if !player.hasFolded {
+		allCards := append(game.community, player.hand.Cards...)
+		bestHand, bestCombination := game.findBestHand(allCards)
+		player.bestHand = &bestHand
+		player.bestCombination = bestCombination
+	}
 }
 
 func (game *Game) findBestHand(allCards []pokergo.Card) (pokergo.Hand, []pokergo.Card) {
@@ -371,91 +293,4 @@ func (game *Game) isCurrentRoundFinished() bool {
 		}
 	}
 	return len(uniquePots) == 1
-}
-
-type VisibleGameState struct {
-	Players      []TexasPlayerPublicInfo
-	Round        TexasHoldEmRound
-	ActivePlayer *TexasPlayerPublicInfo
-	Winner       string
-	Dealer       TexasPlayerPublicInfo
-	Community    []pokergo.Card
-}
-
-func (gameState VisibleGameState) Print() {
-	fmt.Printf("Little Friendly Game of Poker, stage: %s\n", gameState.Round)
-	fmt.Printf("Dealer: %s\n", gameState.Dealer.Name)
-	fmt.Printf("Community Cards:\n")
-	for _, card := range gameState.Community {
-		fmt.Printf("- %s\n", card)
-	}
-	fmt.Printf("Players:\n")
-	for _, player := range gameState.Players {
-		fmt.Printf("- %s\n", player)
-	}
-	if gameState.ActivePlayer != nil {
-		fmt.Printf("Now playing: %s\n", gameState.ActivePlayer.Name)
-	}
-	if gameState.Winner != "" {
-		fmt.Printf("Winner: %s\n", gameState.Winner)
-	}
-}
-
-type TexasPlayerPublicInfo struct {
-	Name       string
-	Money      int64
-	HasFolded  bool
-	CurrentPot int64
-	Cards      []pokergo.Card
-	Hand       *pokergo.Hand
-	BestCards  []pokergo.Card
-}
-
-func (playerPublicInfo TexasPlayerPublicInfo) String() string {
-	foldedString := "in game"
-	if playerPublicInfo.HasFolded {
-		foldedString = "has folded"
-	}
-	playerString := fmt.Sprintf("%s, pot: %d$, %s, total: %d$",
-		playerPublicInfo.Name,
-		playerPublicInfo.CurrentPot,
-		foldedString,
-		playerPublicInfo.Money)
-	if playerPublicInfo.Hand != nil {
-		playerString += fmt.Sprintf(", Cards: %s, Hand: %s, Combination: %s",
-			playerPublicInfo.Cards,
-			playerPublicInfo.Hand,
-			playerPublicInfo.BestCards,
-		)
-	}
-	return playerString
-}
-
-type TexasPlayer struct {
-	player          *Player
-	hand            pokergo.Deck
-	bestCombination []pokergo.Card
-	bestHand        *pokergo.Hand
-	hasFolded       bool
-	hasPlayed       bool
-	currentPot      int64
-}
-
-func (texasPlayer TexasPlayer) GetPublicInfo() TexasPlayerPublicInfo {
-	playerInfo := TexasPlayerPublicInfo{
-		Name:       texasPlayer.player.name,
-		Money:      texasPlayer.player.money,
-		HasFolded:  texasPlayer.hasFolded,
-		CurrentPot: texasPlayer.currentPot,
-	}
-	if !texasPlayer.hasFolded && texasPlayer.bestHand != nil {
-		playerInfo.Cards = texasPlayer.hand.Cards
-		playerInfo.BestCards = texasPlayer.bestCombination
-		playerInfo.Hand = texasPlayer.bestHand
-	}
-	return playerInfo
-}
-
-func (texasPlayer TexasPlayer) String() string {
-	return texasPlayer.player.String() + " " + texasPlayer.hand.String() + " " + strconv.FormatInt(texasPlayer.currentPot, 10)
 }
