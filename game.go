@@ -8,6 +8,7 @@ import (
 )
 
 type Game struct {
+	table             *Table
 	players           []*TexasPlayer
 	winner            *TexasPlayer
 	lastBet           int64

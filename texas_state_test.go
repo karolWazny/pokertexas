@@ -7,7 +7,7 @@ import (
 func TestDumpTableWithoutPlayersNorGame(t *testing.T) {
 	table := NewTable(20, 50)
 	state := table.DumpState()
-	if state.Game != nil {
+	if state.Table.Game != nil {
 		t.Errorf("Game should be nil when no game was started.")
 	}
 	if len(state.Players) != 0 {
@@ -64,10 +64,10 @@ func TestDumpStateWithTwoPlayersAndStartedGame(t *testing.T) {
 	})
 	_ = table.StartGame()
 	state := table.DumpState()
-	if state.Game == nil {
-		t.Errorf("state.Game should not be nil, was %v", state.Game)
+	if state.Table.Game == nil {
+		t.Errorf("state.Game should not be nil, was %v", state.Table.Game)
 	}
-	if len(state.Game.Players) != 2 {
-		t.Errorf("len(state.Game) should be 2, was %v", len(state.Game.Players))
+	if len(state.Table.Game.Players) != 2 {
+		t.Errorf("len(state.Game) should be 2, was %v", len(state.Table.Game.Players))
 	}
 }

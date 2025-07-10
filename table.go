@@ -63,6 +63,7 @@ func (table *Table) StartGame() Game {
 		activePlayerIndex: 2,
 		community:         make([]pokergo.Card, 0),
 		round:             PREFLOP,
+		table:             table,
 	}
 	return *table.currentGame
 }
@@ -70,6 +71,22 @@ func (table *Table) StartGame() Game {
 func (table *Table) DumpState() TableState {
 	players := make(map[string]PlayerDto, len(table.players))
 	playerNames := make([]string, len(table.players))
+	var texasPlayers []TexasPlayerDto
+	if table.currentGame != nil {
+		texasPlayersCount := len(table.currentGame.players)
+		texasPlayers = make([]TexasPlayerDto, texasPlayersCount)
+		for i, player := range table.currentGame.players {
+			texasPlayers[i] = TexasPlayerDto{
+				Name:            player.player.Name(),
+				HasFolded:       player.hasFolded,
+				HasPlayed:       player.hasPlayed,
+				CurrentPot:      player.currentPot,
+				BestHand:        player.bestHand,
+				BestCombination: player.bestCombination,
+				Hand:            player.hand,
+			}
+		}
+	}
 	for i, player := range table.players {
 		playerNames[i] = player.Name()
 		players[player.Name()] = PlayerDto{
@@ -87,8 +104,8 @@ func (table *Table) DumpState() TableState {
 		Players: players,
 	}
 	if table.GetCurrentGame() != nil {
-		state.Game = &GameDto{
-			Players: playerNames,
+		state.Table.Game = &GameDto{
+			Players: texasPlayers,
 		}
 	}
 	return state
