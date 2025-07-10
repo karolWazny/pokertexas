@@ -1,6 +1,7 @@
 package pokertexas
 
 import (
+	"fmt"
 	"slices"
 	"testing"
 )
@@ -57,11 +58,15 @@ func TestSecondRaiseCausesAReRaise(t *testing.T) {
 	game.Call()
 	game.Call()
 	game.Check()
+	fmt.Println(game.CurrentPlayer())
 	game.Raise(50)
+	fmt.Println(game.CurrentPlayer())
 	player, _ := game.CurrentPlayer()
-	currentMoney := player.player.money
+	fmt.Println(game.CurrentPlayer())
+	currentMoney := player.money
 	game.Raise(50)
-	moneyAfterRaise := player.player.money
+	fmt.Println(game.CurrentPlayer())
+	moneyAfterRaise := player.money
 	difference := currentMoney - moneyAfterRaise
 	if difference != 100 {
 		t.Errorf("Raising 50 after raise of 50 should cause re-raise (100$ total) (was %d)", difference)
@@ -104,6 +109,7 @@ func TestWhenEverybodyFoldsRemainingPlayerWins(t *testing.T) {
 	game.Fold()
 	// master is the last player standing
 	visibleGameState := game.GetVisibleGameState()
+	fmt.Println(visibleGameState)
 	if visibleGameState.Round != FINISHED {
 		t.Errorf("When only one player remains, the game should be finished (is %s)", visibleGameState.Round)
 	}
@@ -111,11 +117,11 @@ func TestWhenEverybodyFoldsRemainingPlayerWins(t *testing.T) {
 	if e != nil {
 		t.Errorf("There should be no error fetching winner after game is finished (was %v)", e)
 	}
-	if winner.player.name != "MasterOfDisaster" {
-		t.Errorf("Winner should be MasterOfDisaster (was %s)", winner.player.name)
+	if winner.name != "MasterOfDisaster" {
+		t.Errorf("Winner should be MasterOfDisaster (was %s)", winner.name)
 	}
-	if winner.player.money != 1570 {
-		t.Errorf("Winner money should be 1570 (initial money + blinds) (was %d)", winner.player.money)
+	if winner.money != 1570 {
+		t.Errorf("Winner money should be 1570 (initial money + blinds) (was %d)", winner.money)
 	}
 }
 
