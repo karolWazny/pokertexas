@@ -7,52 +7,52 @@ import (
 )
 
 type Player struct {
-	name            string
-	money           int64
-	hand            []pokergo.Card
-	bestCombination []pokergo.Card
-	bestHand        *pokergo.Hand
-	hasFolded       bool
-	hasPlayed       bool
-	currentPot      int64
+	Name            string         `json:"name"`
+	Money           int64          `json:"money"`
+	Hand            []pokergo.Card `json:"hand"`
+	BestCombination []pokergo.Card `json:"best_combination"`
+	BestHand        *pokergo.Hand  `json:"best_hand"`
+	HasFolded       bool           `json:"has_folded"`
+	HasPlayed       bool           `json:"has_played"`
+	CurrentPot      int64          `json:"current_pot"`
 }
 
 func NewPlayer(name string, money int64) Player {
-	return Player{name: name, money: money}
+	return Player{Name: name, Money: money}
 }
 
 func (p *Player) GetPublicInfo() TexasPlayerPublicInfo {
 	playerInfo := TexasPlayerPublicInfo{
-		Name:       p.name,
-		Money:      p.money,
-		HasFolded:  p.hasFolded,
-		CurrentPot: p.currentPot,
+		Name:       p.Name,
+		Money:      p.Money,
+		HasFolded:  p.HasFolded,
+		CurrentPot: p.CurrentPot,
 	}
-	if !p.hasFolded && p.bestHand != nil {
-		playerInfo.Cards = p.hand
-		playerInfo.BestCards = p.bestCombination
-		playerInfo.Hand = p.bestHand
+	if !p.HasFolded && p.BestHand != nil {
+		playerInfo.Cards = p.Hand
+		playerInfo.BestCards = p.BestCombination
+		playerInfo.Hand = p.BestHand
 	}
 	return playerInfo
 }
 
 func (p *Player) Reset() {
-	p.hand = make([]pokergo.Card, 0)
-	p.bestCombination = make([]pokergo.Card, 0)
-	p.bestHand = nil
-	p.hasFolded = false
-	p.hasPlayed = false
-	p.currentPot = 0
+	p.Hand = make([]pokergo.Card, 0)
+	p.BestCombination = make([]pokergo.Card, 0)
+	p.BestHand = nil
+	p.HasFolded = false
+	p.HasPlayed = false
+	p.CurrentPot = 0
 }
 
-func (p *Player) Money() int64 {
-	return p.money
+func (p *Player) GetMoney() int64 {
+	return p.Money
 }
 
-func (p *Player) Name() string {
-	return p.name
+func (p *Player) GetName() string {
+	return p.Name
 }
 
 func (p *Player) String() string {
-	return p.name + ", " + strconv.FormatInt(p.money, 10) + " " + fmt.Sprintf("%v", p.hand) + " " + strconv.FormatInt(p.currentPot, 10)
+	return p.Name + ", " + strconv.FormatInt(p.Money, 10) + " " + fmt.Sprintf("%v", p.Hand) + " " + strconv.FormatInt(p.CurrentPot, 10)
 }

@@ -21,7 +21,7 @@ func (gameState VisibleGameState) Print() {
 	for _, card := range gameState.Community {
 		fmt.Printf("- %s\n", card)
 	}
-	fmt.Printf("Players:\n")
+	fmt.Printf("PlayersList:\n")
 	for _, player := range gameState.Players {
 		fmt.Printf("- %s\n", player)
 	}

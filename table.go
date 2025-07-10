@@ -7,107 +7,72 @@ import (
 )
 
 type Table struct {
-	players     []*Player
-	currentGame *Game
-	smallBlind  int64
-	bigBlind    int64
-	dealerIndex int
+	PlayerNames []string           `json:"player_names"`
+	Players     map[string]*Player `json:"Players"`
+	CurrentGame *Game              `json:"current_game"`
+	SmallBlind  int64              `json:"small_blind"`
+	BigBlind    int64              `json:"big_blind"`
+	DealerIndex int                `json:"dealer_index"`
 }
 
-func (table *Table) Players() []*Player {
-	return table.players
+func (table *Table) PlayersList() []*Player {
+	result := make([]*Player, len(table.PlayerNames))
+	for i, name := range table.PlayerNames {
+		result[i] = table.Players[name]
+	}
+	return result
 }
 
 func NewTable(smallBlind int64, bigBlind int64) Table {
 	return Table{
-		players:     make([]*Player, 0),
-		smallBlind:  smallBlind,
-		bigBlind:    bigBlind,
-		dealerIndex: -1,
+		Players:     make(map[string]*Player),
+		SmallBlind:  smallBlind,
+		BigBlind:    bigBlind,
+		DealerIndex: -1,
 	}
 }
 
 func (table *Table) AddPlayer(player *Player) error {
-	for _, existingPlayer := range table.players {
-		if strings.ToUpper(existingPlayer.Name()) == strings.ToUpper(player.Name()) {
+	for _, existingPlayer := range table.PlayerNames {
+		if strings.ToUpper(existingPlayer) == strings.ToUpper(player.GetName()) {
 			return errors.New("player already exists")
 		}
 	}
-	table.players = append(table.players, player)
+	table.PlayerNames = append(table.PlayerNames, player.GetName())
+	table.Players[player.GetName()] = player
 	return nil
 }
 
 func (table *Table) StartGame() Game {
-	table.dealerIndex = (table.dealerIndex + 1) % len(table.players)
-	orderedPlayers := append(table.players[table.dealerIndex+1:], table.players[:table.dealerIndex+1]...)
-	texasPlayers := make([]*Player, len(orderedPlayers))
+	table.DealerIndex = (table.DealerIndex + 1) % len(table.Players)
+	orderedPlayerNames := append(table.PlayerNames[table.DealerIndex+1:], table.PlayerNames[:table.DealerIndex+1]...)
+	orderedPlayers := make([]*Player, len(orderedPlayerNames))
+	for i, name := range orderedPlayerNames {
+		orderedPlayers[i] = table.Players[name]
+	}
 	deck := pokergo.CreateDeck().Shuffled()
-	for i, player := range orderedPlayers {
+	for _, player := range orderedPlayers {
 		player.Reset()
 		hand, smallerDeck := deck.Deal(2)
 		deck = smallerDeck
-		player.hand = hand.Cards
-		texasPlayers[i] = player
+		player.Hand = hand.Cards
 	}
-	texasPlayers[0].currentPot = table.smallBlind
-	texasPlayers[0].money -= table.smallBlind
-	texasPlayers[1].currentPot = table.bigBlind
-	texasPlayers[1].money -= table.bigBlind
-	table.currentGame = &Game{
-		players:           texasPlayers,
-		lastBet:           table.bigBlind,
-		deck:              deck,
-		activePlayerIndex: 2,
-		community:         make([]pokergo.Card, 0),
-		round:             PREFLOP,
+	orderedPlayers[0].CurrentPot = table.SmallBlind
+	orderedPlayers[0].Money -= table.SmallBlind
+	orderedPlayers[1].CurrentPot = table.BigBlind
+	orderedPlayers[1].Money -= table.BigBlind
+	table.CurrentGame = &Game{
+		PlayerNames:       orderedPlayerNames,
+		LastBet:           table.BigBlind,
+		Deck:              deck,
+		ActivePlayerIndex: 2,
+		Community:         make([]pokergo.Card, 0),
+		Round:             PREFLOP,
 		table:             table,
 	}
-	return *table.currentGame
-}
-
-func (table *Table) DumpState() TableState {
-	players := make(map[string]PlayerDto, len(table.players))
-	playerNames := make([]string, len(table.players))
-	var texasPlayers []TexasPlayerDto
-	if table.currentGame != nil {
-		texasPlayersCount := len(table.currentGame.players)
-		texasPlayers = make([]TexasPlayerDto, texasPlayersCount)
-		for i, player := range table.currentGame.players {
-			texasPlayers[i] = TexasPlayerDto{
-				Name:            player.Name(),
-				HasFolded:       player.hasFolded,
-				HasPlayed:       player.hasPlayed,
-				CurrentPot:      player.currentPot,
-				BestHand:        player.bestHand,
-				BestCombination: player.bestCombination,
-				Hand:            player.hand,
-			}
-		}
-	}
-	for i, player := range table.players {
-		playerNames[i] = player.Name()
-		players[player.Name()] = PlayerDto{
-			Name:  player.Name(),
-			Money: player.Money(),
-		}
-	}
-	state := TableState{
-		Table: TableDto{
-			SmallBlind:  table.smallBlind,
-			BigBlind:    table.bigBlind,
-			Players:     playerNames,
-			DealerIndex: table.dealerIndex,
-		},
-		Players: players,
-	}
-	if table.GetCurrentGame() != nil {
-		state.Table.Game = &GameDto{
-			Players: texasPlayers,
-		}
-	}
-	return state
+	return *table.CurrentGame
 }
 
 func (table *Table) GetCurrentGame() *Game {
-	return table.currentGame
+	return table.CurrentGame
 }

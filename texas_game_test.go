@@ -11,7 +11,7 @@ func TestThreePlayersCanStartAGame(t *testing.T) {
 	game := table.StartGame()
 	visibleGameState := game.GetVisibleGameState()
 	if len(visibleGameState.Players) != 3 {
-		t.Errorf("There should be 3 players")
+		t.Errorf("There should be 3 Players")
 	}
 }
 
@@ -63,10 +63,10 @@ func TestSecondRaiseCausesAReRaise(t *testing.T) {
 	fmt.Println(game.CurrentPlayer())
 	player, _ := game.CurrentPlayer()
 	fmt.Println(game.CurrentPlayer())
-	currentMoney := player.money
+	currentMoney := player.Money
 	game.Raise(50)
 	fmt.Println(game.CurrentPlayer())
-	moneyAfterRaise := player.money
+	moneyAfterRaise := player.Money
 	difference := currentMoney - moneyAfterRaise
 	if difference != 100 {
 		t.Errorf("Raising 50 after raise of 50 should cause re-raise (100$ total) (was %d)", difference)
@@ -102,10 +102,13 @@ func TestWhenEverybodyFoldsRemainingPlayerWins(t *testing.T) {
 	table := prepareThreePlayerTable()
 	game := table.StartGame()
 	// master calls
+	fmt.Println(game.CurrentPlayer())
 	game.Call()
 	// badmann folds
+	fmt.Println(game.CurrentPlayer())
 	game.Fold()
 	// hanku folds
+	fmt.Println(game.CurrentPlayer())
 	game.Fold()
 	// master is the last player standing
 	visibleGameState := game.GetVisibleGameState()
@@ -117,11 +120,11 @@ func TestWhenEverybodyFoldsRemainingPlayerWins(t *testing.T) {
 	if e != nil {
 		t.Errorf("There should be no error fetching winner after game is finished (was %v)", e)
 	}
-	if winner.name != "MasterOfDisaster" {
-		t.Errorf("Winner should be MasterOfDisaster (was %s)", winner.name)
+	if winner.Name != "MasterOfDisaster" {
+		t.Errorf("Winner should be MasterOfDisaster (was %s)", winner.Name)
 	}
-	if winner.money != 1570 {
-		t.Errorf("Winner money should be 1570 (initial money + blinds) (was %d)", winner.money)
+	if winner.Money != 1570 {
+		t.Errorf("Winner money should be 1570 (initial money + blinds) (was %d)", winner.Money)
 	}
 }
 
