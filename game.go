@@ -46,7 +46,7 @@ func (game *Game) Fold() error {
 	if game.playersInGame() == 1 {
 		// finish game
 		lastActivePlayerIndex := slices.IndexFunc(game.s.PlayerNames, func(player string) bool {
-			return !game.table.s.Players[player].s.HasFolded
+			return !game.table.players[player].s.HasFolded
 		})
 		game.s.WinnerName = &game.s.PlayerNames[lastActivePlayerIndex]
 		game.s.ActivePlayerIndex = -1
@@ -86,7 +86,7 @@ func (game *Game) Winner() (*Player, error) {
 	if game.s.Round != FINISHED {
 		return nil, errors.New("there is no winner before game end")
 	}
-	return game.table.s.Players[*game.s.WinnerName], nil
+	return game.table.players[*game.s.WinnerName], nil
 }
 
 func (game *Game) CurrentPlayer() (*Player, error) {
@@ -119,7 +119,7 @@ func (game *Game) GetVisibleGameState() VisibleGameState {
 	visibleGameState := VisibleGameState{}
 	players := make([]TexasPlayerPublicInfo, len(game.s.PlayerNames))
 	for i, player := range game.s.PlayerNames {
-		players[i] = game.table.s.Players[player].GetPublicInfo()
+		players[i] = game.table.players[player].GetPublicInfo()
 	}
 	visibleGameState.Players = players
 	activePlayer, e := game.CurrentPlayer()
@@ -128,7 +128,7 @@ func (game *Game) GetVisibleGameState() VisibleGameState {
 		visibleGameState.ActivePlayer = &activePlayerInfo
 	}
 	visibleGameState.Round = game.s.Round
-	visibleGameState.Dealer = game.table.s.Players[game.s.PlayerNames[len(game.s.PlayerNames)-1]].GetPublicInfo()
+	visibleGameState.Dealer = game.table.players[game.s.PlayerNames[len(game.s.PlayerNames)-1]].GetPublicInfo()
 	visibleGameState.Community = game.CommunityCards()
 	if game.s.WinnerName != nil {
 		visibleGameState.Winner = *game.s.WinnerName
@@ -137,19 +137,19 @@ func (game *Game) GetVisibleGameState() VisibleGameState {
 }
 
 func (game *Game) transferPotToWinner() {
-	for _, player := range game.table.s.Players {
-		game.table.s.Players[*game.s.WinnerName].s.Money += player.CurrentPot()
+	for _, player := range game.table.players {
+		game.table.players[*game.s.WinnerName].s.Money += player.CurrentPot()
 	}
 }
 
 func (game *Game) unsafeGetCurrentPlayer() *Player {
-	return game.table.s.Players[game.s.PlayerNames[game.s.ActivePlayerIndex]]
+	return game.table.players[game.s.PlayerNames[game.s.ActivePlayerIndex]]
 }
 
 func (game *Game) playersInGame() int {
 	playersInGame := 0
 	for _, player := range game.s.PlayerNames {
-		if !game.table.s.Players[player].HasFolded() {
+		if !game.table.players[player].HasFolded() {
 			playersInGame++
 		}
 	}
@@ -159,11 +159,11 @@ func (game *Game) playersInGame() int {
 func (game *Game) getPreviousPlayerPot() int64 {
 	for i := 1; i < len(game.s.PlayerNames); i++ {
 		previousPlayerIndex := (game.s.ActivePlayerIndex - i + len(game.s.PlayerNames)) % len(game.s.PlayerNames)
-		if !game.table.s.Players[game.s.PlayerNames[previousPlayerIndex]].HasFolded() {
-			return game.table.s.Players[game.s.PlayerNames[previousPlayerIndex]].CurrentPot()
+		if !game.table.players[game.s.PlayerNames[previousPlayerIndex]].HasFolded() {
+			return game.table.players[game.s.PlayerNames[previousPlayerIndex]].CurrentPot()
 		}
 	}
-	panic("There should be at least two active Players!")
+	panic("There should be at least two active players!")
 }
 
 func (game *Game) getCurrentPlayerPot() int64 {
@@ -225,7 +225,7 @@ func (game *Game) dealCardsToCommunity(cardsToShow int) {
 func (game *Game) findWinner() {
 	bestPlayer := &Player{}
 	bestHand := pokergo.CreateLowGuardian()
-	for _, player := range game.table.s.Players {
+	for _, player := range game.table.players {
 		if !player.HasFolded() {
 			comparisonResult := pokergo.CompareHands(bestHand, *player.s.BestHand)
 			if comparisonResult != pokergo.FirstWins {
@@ -238,7 +238,7 @@ func (game *Game) findWinner() {
 }
 
 func (game *Game) determineBestHandForEachPlayer() {
-	for _, player := range game.table.s.Players {
+	for _, player := range game.table.players {
 		game.determineBestHandForPlayer(player)
 	}
 }
@@ -284,12 +284,12 @@ func (game *Game) changeActivePlayerToFirstNonFolded() {
 }
 
 func (game *Game) incrementActivePlayerIndex() {
-	game.s.ActivePlayerIndex = (game.s.ActivePlayerIndex + 1) % len(game.table.s.Players)
+	game.s.ActivePlayerIndex = (game.s.ActivePlayerIndex + 1) % len(game.table.players)
 }
 
 func (game *Game) isCurrentRoundFinished() bool {
 	uniquePots := make(map[int64]bool)
-	for _, player := range game.table.s.Players {
+	for _, player := range game.table.players {
 		if !player.HasFolded() {
 			if !player.HasPlayed() {
 				return false

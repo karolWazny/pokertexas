@@ -11,7 +11,7 @@ func TestThreePlayersCanStartAGame(t *testing.T) {
 	game := table.StartGame()
 	visibleGameState := game.GetVisibleGameState()
 	if len(visibleGameState.Players) != 3 {
-		t.Errorf("There should be 3 Players")
+		t.Errorf("There should be 3 players")
 	}
 }
 

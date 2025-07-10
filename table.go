@@ -7,30 +7,30 @@ import (
 )
 
 type TableState struct {
-	PlayerNames []string           `json:"player_names"`
-	Players     map[string]*Player `json:"Players"`
-	SmallBlind  int64              `json:"small_blind"`
-	BigBlind    int64              `json:"big_blind"`
-	DealerIndex int                `json:"dealer_index"`
+	PlayerNames []string `json:"player_names"`
+	SmallBlind  int64    `json:"small_blind"`
+	BigBlind    int64    `json:"big_blind"`
+	DealerIndex int      `json:"dealer_index"`
 }
 
 type Table struct {
 	currentGame *Game
 	s           *TableState
+	players     map[string]*Player
 }
 
 func (t *Table) PlayersList() []*Player {
 	result := make([]*Player, len(t.s.PlayerNames))
 	for i, name := range t.s.PlayerNames {
-		result[i] = t.s.Players[name]
+		result[i] = t.players[name]
 	}
 	return result
 }
 
 func NewTable(smallBlind int64, bigBlind int64) Table {
 	return Table{
+		players: make(map[string]*Player),
 		s: &TableState{
-			Players:     make(map[string]*Player),
 			SmallBlind:  smallBlind,
 			BigBlind:    bigBlind,
 			DealerIndex: -1,
@@ -45,16 +45,16 @@ func (t *Table) AddPlayer(player *Player) error {
 		}
 	}
 	t.s.PlayerNames = append(t.s.PlayerNames, player.Name())
-	t.s.Players[player.Name()] = player
+	t.players[player.Name()] = player
 	return nil
 }
 
 func (t *Table) StartGame() Game {
-	t.s.DealerIndex = (t.s.DealerIndex + 1) % len(t.s.Players)
+	t.s.DealerIndex = (t.s.DealerIndex + 1) % len(t.players)
 	orderedPlayerNames := append(t.s.PlayerNames[t.s.DealerIndex+1:], t.s.PlayerNames[:t.s.DealerIndex+1]...)
 	orderedPlayers := make([]*Player, len(orderedPlayerNames))
 	for i, name := range orderedPlayerNames {
-		orderedPlayers[i] = t.s.Players[name]
+		orderedPlayers[i] = t.players[name]
 	}
 	deck := pokergo.CreateDeck().Shuffled()
 	for _, player := range orderedPlayers {
