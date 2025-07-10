@@ -9,7 +9,7 @@ import (
 
 type Game struct {
 	table             *Table
-	players           []*TexasPlayer
+	players           []*Player
 	winner            *Player
 	lastBet           int64
 	deck              pokergo.Deck
@@ -41,10 +41,10 @@ func (game *Game) Fold() error {
 	game.unsafeGetCurrentPlayer().hand = make([]pokergo.Card, 0)
 	if game.playersInGame() == 1 {
 		// finish game
-		lastActivePlayerIndex := slices.IndexFunc(game.players, func(player *TexasPlayer) bool {
-			return !player.player.hasFolded
+		lastActivePlayerIndex := slices.IndexFunc(game.players, func(player *Player) bool {
+			return !player.hasFolded
 		})
-		game.winner = game.players[lastActivePlayerIndex].player
+		game.winner = game.players[lastActivePlayerIndex]
 		game.activePlayerIndex = -1
 		game.round = FINISHED
 		game.transferPotToWinner()
@@ -115,7 +115,7 @@ func (game *Game) GetVisibleGameState() VisibleGameState {
 	visibleGameState := VisibleGameState{}
 	players := make([]TexasPlayerPublicInfo, len(game.players))
 	for i, player := range game.players {
-		players[i] = player.player.GetPublicInfo()
+		players[i] = player.GetPublicInfo()
 	}
 	visibleGameState.Players = players
 	activePlayer, e := game.CurrentPlayer()
@@ -124,7 +124,7 @@ func (game *Game) GetVisibleGameState() VisibleGameState {
 		visibleGameState.ActivePlayer = &activePlayerInfo
 	}
 	visibleGameState.Round = game.round
-	visibleGameState.Dealer = game.players[len(game.players)-1].player.GetPublicInfo()
+	visibleGameState.Dealer = game.players[len(game.players)-1].GetPublicInfo()
 	visibleGameState.Community = game.CommunityCards()
 	if game.winner != nil {
 		visibleGameState.Winner = game.winner.name
@@ -134,18 +134,18 @@ func (game *Game) GetVisibleGameState() VisibleGameState {
 
 func (game *Game) transferPotToWinner() {
 	for _, player := range game.players {
-		game.winner.money += player.player.currentPot
+		game.winner.money += player.currentPot
 	}
 }
 
 func (game *Game) unsafeGetCurrentPlayer() *Player {
-	return game.players[game.activePlayerIndex].player
+	return game.players[game.activePlayerIndex]
 }
 
 func (game *Game) playersInGame() int {
 	playersInGame := 0
 	for _, player := range game.players {
-		if !player.player.hasFolded {
+		if !player.hasFolded {
 			playersInGame++
 		}
 	}
@@ -155,8 +155,8 @@ func (game *Game) playersInGame() int {
 func (game *Game) getPreviousPlayerPot() int64 {
 	for i := 1; i < len(game.players); i++ {
 		previousPlayerIndex := (game.activePlayerIndex - i + len(game.players)) % len(game.players)
-		if !game.players[previousPlayerIndex].player.hasFolded {
-			return game.players[previousPlayerIndex].player.currentPot
+		if !game.players[previousPlayerIndex].hasFolded {
+			return game.players[previousPlayerIndex].currentPot
 		}
 	}
 	panic("There should be at least two active players!")
@@ -184,7 +184,7 @@ func (game *Game) finishRound() {
 	game.activePlayerIndex = len(game.players) - 1
 	game.changeActivePlayerToFirstNonFolded()
 	for _, player := range game.players {
-		player.player.hasPlayed = false
+		player.hasPlayed = false
 	}
 	game.showCommunityCards()
 	game.round++
@@ -219,18 +219,18 @@ func (game *Game) dealCardsToCommunity(cardsToShow int) {
 }
 
 func (game *Game) findWinner() {
-	bestPlayer := &TexasPlayer{}
+	bestPlayer := &Player{}
 	bestHand := pokergo.CreateLowGuardian()
 	for _, player := range game.players {
-		if !player.player.hasFolded {
-			comparisonResult := pokergo.CompareHands(bestHand, *player.player.bestHand)
+		if !player.hasFolded {
+			comparisonResult := pokergo.CompareHands(bestHand, *player.bestHand)
 			if comparisonResult != pokergo.FirstWins {
 				bestPlayer = player
-				bestHand = *player.player.bestHand
+				bestHand = *player.bestHand
 			}
 		}
 	}
-	game.winner = bestPlayer.player
+	game.winner = bestPlayer
 }
 
 func (game *Game) determineBestHandForEachPlayer() {
@@ -239,12 +239,12 @@ func (game *Game) determineBestHandForEachPlayer() {
 	}
 }
 
-func (game *Game) determineBestHandForPlayer(player *TexasPlayer) {
-	if !player.player.hasFolded {
-		allCards := append(game.community, player.player.hand...)
+func (game *Game) determineBestHandForPlayer(player *Player) {
+	if !player.hasFolded {
+		allCards := append(game.community, player.hand...)
 		bestHand, bestCombination := game.findBestHand(allCards)
-		player.player.bestHand = &bestHand
-		player.player.bestCombination = bestCombination
+		player.bestHand = &bestHand
+		player.bestCombination = bestCombination
 	}
 }
 
@@ -286,11 +286,11 @@ func (game *Game) incrementActivePlayerIndex() {
 func (game *Game) isCurrentRoundFinished() bool {
 	uniquePots := make(map[int64]bool)
 	for _, player := range game.players {
-		if !player.player.hasFolded {
-			if !player.player.hasPlayed {
+		if !player.hasFolded {
+			if !player.hasPlayed {
 				return false
 			}
-			uniquePots[player.player.currentPot] = true
+			uniquePots[player.currentPot] = true
 		}
 	}
 	return len(uniquePots) == 1

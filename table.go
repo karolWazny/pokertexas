@@ -40,21 +40,19 @@ func (table *Table) AddPlayer(player *Player) error {
 func (table *Table) StartGame() Game {
 	table.dealerIndex = (table.dealerIndex + 1) % len(table.players)
 	orderedPlayers := append(table.players[table.dealerIndex+1:], table.players[:table.dealerIndex+1]...)
-	texasPlayers := make([]*TexasPlayer, len(orderedPlayers))
+	texasPlayers := make([]*Player, len(orderedPlayers))
 	deck := pokergo.CreateDeck().Shuffled()
 	for i, player := range orderedPlayers {
 		player.Reset()
 		hand, smallerDeck := deck.Deal(2)
 		deck = smallerDeck
 		player.hand = hand.Cards
-		texasPlayers[i] = &TexasPlayer{
-			player: player,
-		}
+		texasPlayers[i] = player
 	}
-	texasPlayers[0].player.currentPot = table.smallBlind
-	texasPlayers[0].player.money -= table.smallBlind
-	texasPlayers[1].player.currentPot = table.bigBlind
-	texasPlayers[1].player.money -= table.bigBlind
+	texasPlayers[0].currentPot = table.smallBlind
+	texasPlayers[0].money -= table.smallBlind
+	texasPlayers[1].currentPot = table.bigBlind
+	texasPlayers[1].money -= table.bigBlind
 	table.currentGame = &Game{
 		players:           texasPlayers,
 		lastBet:           table.bigBlind,
@@ -76,13 +74,13 @@ func (table *Table) DumpState() TableState {
 		texasPlayers = make([]TexasPlayerDto, texasPlayersCount)
 		for i, player := range table.currentGame.players {
 			texasPlayers[i] = TexasPlayerDto{
-				Name:            player.player.Name(),
-				HasFolded:       player.player.hasFolded,
-				HasPlayed:       player.player.hasPlayed,
-				CurrentPot:      player.player.currentPot,
-				BestHand:        player.player.bestHand,
-				BestCombination: player.player.bestCombination,
-				Hand:            player.player.hand,
+				Name:            player.Name(),
+				HasFolded:       player.hasFolded,
+				HasPlayed:       player.hasPlayed,
+				CurrentPot:      player.currentPot,
+				BestHand:        player.bestHand,
+				BestCombination: player.bestCombination,
+				Hand:            player.hand,
 			}
 		}
 	}
