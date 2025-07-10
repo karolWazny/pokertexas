@@ -40,12 +40,12 @@ func NewTable(smallBlind int64, bigBlind int64) Table {
 
 func (t *Table) AddPlayer(player *Player) error {
 	for _, existingPlayer := range t.s.PlayerNames {
-		if strings.ToUpper(existingPlayer) == strings.ToUpper(player.GetName()) {
+		if strings.ToUpper(existingPlayer) == strings.ToUpper(player.Name()) {
 			return errors.New("player already exists")
 		}
 	}
-	t.s.PlayerNames = append(t.s.PlayerNames, player.GetName())
-	t.s.Players[player.GetName()] = player
+	t.s.PlayerNames = append(t.s.PlayerNames, player.Name())
+	t.s.Players[player.Name()] = player
 	return nil
 }
 
@@ -61,12 +61,12 @@ func (t *Table) StartGame() Game {
 		player.Reset()
 		hand, smallerDeck := deck.Deal(2)
 		deck = smallerDeck
-		player.Hand = hand.Cards
+		player.s.Hand = hand.Cards
 	}
-	orderedPlayers[0].CurrentPot = t.s.SmallBlind
-	orderedPlayers[0].Money -= t.s.SmallBlind
-	orderedPlayers[1].CurrentPot = t.s.BigBlind
-	orderedPlayers[1].Money -= t.s.BigBlind
+	orderedPlayers[0].s.CurrentPot = t.s.SmallBlind
+	orderedPlayers[0].s.Money -= t.s.SmallBlind
+	orderedPlayers[1].s.CurrentPot = t.s.BigBlind
+	orderedPlayers[1].s.Money -= t.s.BigBlind
 	t.currentGame = &Game{
 		s: &GameState{
 			PlayerNames:       orderedPlayerNames,

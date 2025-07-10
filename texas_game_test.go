@@ -63,10 +63,10 @@ func TestSecondRaiseCausesAReRaise(t *testing.T) {
 	fmt.Println(game.CurrentPlayer())
 	player, _ := game.CurrentPlayer()
 	fmt.Println(game.CurrentPlayer())
-	currentMoney := player.Money
+	currentMoney := player.Money()
 	game.Raise(50)
 	fmt.Println(game.CurrentPlayer())
-	moneyAfterRaise := player.Money
+	moneyAfterRaise := player.Money()
 	difference := currentMoney - moneyAfterRaise
 	if difference != 100 {
 		t.Errorf("Raising 50 after raise of 50 should cause re-raise (100$ total) (was %d)", difference)
@@ -120,11 +120,11 @@ func TestWhenEverybodyFoldsRemainingPlayerWins(t *testing.T) {
 	if e != nil {
 		t.Errorf("There should be no error fetching winner after game is finished (was %v)", e)
 	}
-	if winner.Name != "MasterOfDisaster" {
-		t.Errorf("Winner should be MasterOfDisaster (was %s)", winner.Name)
+	if winner.Name() != "MasterOfDisaster" {
+		t.Errorf("Winner should be MasterOfDisaster (was %s)", winner.Name())
 	}
-	if winner.Money != 1570 {
-		t.Errorf("Winner money should be 1570 (initial money + blinds) (was %d)", winner.Money)
+	if winner.Money() != 1570 {
+		t.Errorf("Winner money should be 1570 (initial money + blinds) (was %d)", winner.Money())
 	}
 }
 
