@@ -16,7 +16,7 @@ type TableState struct {
 
 type Table struct {
 	currentGame *Game
-	s           TableState
+	s           *TableState
 }
 
 func (t *Table) PlayersList() []*Player {
@@ -29,7 +29,7 @@ func (t *Table) PlayersList() []*Player {
 
 func NewTable(smallBlind int64, bigBlind int64) Table {
 	return Table{
-		s: TableState{
+		s: &TableState{
 			Players:     make(map[string]*Player),
 			SmallBlind:  smallBlind,
 			BigBlind:    bigBlind,
@@ -68,13 +68,15 @@ func (t *Table) StartGame() Game {
 	orderedPlayers[1].CurrentPot = t.s.BigBlind
 	orderedPlayers[1].Money -= t.s.BigBlind
 	t.currentGame = &Game{
-		PlayerNames:       orderedPlayerNames,
-		LastBet:           t.s.BigBlind,
-		Deck:              deck,
-		ActivePlayerIndex: 2,
-		Community:         make([]pokergo.Card, 0),
-		Round:             PREFLOP,
-		table:             t,
+		s: &GameState{
+			PlayerNames:       orderedPlayerNames,
+			LastBet:           t.s.BigBlind,
+			Deck:              deck,
+			ActivePlayerIndex: 2,
+			Community:         make([]pokergo.Card, 0),
+			Round:             PREFLOP,
+		},
+		table: t,
 	}
 	return *t.currentGame
 }

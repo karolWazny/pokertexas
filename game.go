@@ -7,8 +7,7 @@ import (
 	"slices"
 )
 
-type Game struct {
-	table             *Table
+type GameState struct {
 	PlayerNames       []string         `json:"player_names"`
 	WinnerName        *string          `json:"winner_name"`
 	LastBet           int64            `json:"last_bet"`
@@ -16,6 +15,11 @@ type Game struct {
 	ActivePlayerIndex int              `json:"active_player_index"`
 	Community         []pokergo.Card   `json:"community"`
 	Round             TexasHoldEmRound `json:"round"`
+}
+
+type Game struct {
+	table *Table
+	s     *GameState
 }
 
 func (game *Game) Call() error {
@@ -41,12 +45,12 @@ func (game *Game) Fold() error {
 	game.unsafeGetCurrentPlayer().Hand = make([]pokergo.Card, 0)
 	if game.playersInGame() == 1 {
 		// finish game
-		lastActivePlayerIndex := slices.IndexFunc(game.PlayerNames, func(player string) bool {
+		lastActivePlayerIndex := slices.IndexFunc(game.s.PlayerNames, func(player string) bool {
 			return !game.table.s.Players[player].HasFolded
 		})
-		game.WinnerName = &game.PlayerNames[lastActivePlayerIndex]
-		game.ActivePlayerIndex = -1
-		game.Round = FINISHED
+		game.s.WinnerName = &game.s.PlayerNames[lastActivePlayerIndex]
+		game.s.ActivePlayerIndex = -1
+		game.s.Round = FINISHED
 		game.transferPotToWinner()
 	} else {
 		game.nextPlayer()
@@ -64,10 +68,10 @@ func (game *Game) Check() error {
 }
 
 func (game *Game) Raise(amount int64) error {
-	if amount < game.LastBet {
+	if amount < game.s.LastBet {
 		return errors.New("amount must be greater than last bet")
 	}
-	game.LastBet = amount
+	game.s.LastBet = amount
 	realAmount := game.getPreviousPlayerPot() - game.getCurrentPlayerPot() + amount
 	currentPlayer, e := game.CurrentPlayer()
 	if e == nil {
@@ -79,21 +83,21 @@ func (game *Game) Raise(amount int64) error {
 }
 
 func (game *Game) Winner() (*Player, error) {
-	if game.Round != FINISHED {
+	if game.s.Round != FINISHED {
 		return nil, errors.New("there is no winner before game end")
 	}
-	return game.table.s.Players[*game.WinnerName], nil
+	return game.table.s.Players[*game.s.WinnerName], nil
 }
 
 func (game *Game) CurrentPlayer() (*Player, error) {
-	if game.Round != FINISHED {
+	if game.s.Round != FINISHED {
 		return game.unsafeGetCurrentPlayer(), nil
 	}
 	return nil, errors.New("in finished game there is no current player")
 }
 
 func (game *Game) AvailableActions() []TexasHoldEmAction {
-	if game.Round == FINISHED {
+	if game.s.Round == FINISHED {
 		return []TexasHoldEmAction{}
 	}
 	currentPlayer := game.unsafeGetCurrentPlayer()
@@ -108,13 +112,13 @@ func (game *Game) AvailableActions() []TexasHoldEmAction {
 }
 
 func (game *Game) CommunityCards() []pokergo.Card {
-	return game.Community
+	return game.s.Community
 }
 
 func (game *Game) GetVisibleGameState() VisibleGameState {
 	visibleGameState := VisibleGameState{}
-	players := make([]TexasPlayerPublicInfo, len(game.PlayerNames))
-	for i, player := range game.PlayerNames {
+	players := make([]TexasPlayerPublicInfo, len(game.s.PlayerNames))
+	for i, player := range game.s.PlayerNames {
 		players[i] = game.table.s.Players[player].GetPublicInfo()
 	}
 	visibleGameState.Players = players
@@ -123,28 +127,28 @@ func (game *Game) GetVisibleGameState() VisibleGameState {
 		activePlayerInfo := activePlayer.GetPublicInfo()
 		visibleGameState.ActivePlayer = &activePlayerInfo
 	}
-	visibleGameState.Round = game.Round
-	visibleGameState.Dealer = game.table.s.Players[game.PlayerNames[len(game.PlayerNames)-1]].GetPublicInfo()
+	visibleGameState.Round = game.s.Round
+	visibleGameState.Dealer = game.table.s.Players[game.s.PlayerNames[len(game.s.PlayerNames)-1]].GetPublicInfo()
 	visibleGameState.Community = game.CommunityCards()
-	if game.WinnerName != nil {
-		visibleGameState.Winner = *game.WinnerName
+	if game.s.WinnerName != nil {
+		visibleGameState.Winner = *game.s.WinnerName
 	}
 	return visibleGameState
 }
 
 func (game *Game) transferPotToWinner() {
 	for _, player := range game.table.s.Players {
-		game.table.s.Players[*game.WinnerName].Money += player.CurrentPot
+		game.table.s.Players[*game.s.WinnerName].Money += player.CurrentPot
 	}
 }
 
 func (game *Game) unsafeGetCurrentPlayer() *Player {
-	return game.table.s.Players[game.PlayerNames[game.ActivePlayerIndex]]
+	return game.table.s.Players[game.s.PlayerNames[game.s.ActivePlayerIndex]]
 }
 
 func (game *Game) playersInGame() int {
 	playersInGame := 0
-	for _, player := range game.PlayerNames {
+	for _, player := range game.s.PlayerNames {
 		if !game.table.s.Players[player].HasFolded {
 			playersInGame++
 		}
@@ -153,10 +157,10 @@ func (game *Game) playersInGame() int {
 }
 
 func (game *Game) getPreviousPlayerPot() int64 {
-	for i := 1; i < len(game.PlayerNames); i++ {
-		previousPlayerIndex := (game.ActivePlayerIndex - i + len(game.PlayerNames)) % len(game.PlayerNames)
-		if !game.table.s.Players[game.PlayerNames[previousPlayerIndex]].HasFolded {
-			return game.table.s.Players[game.PlayerNames[previousPlayerIndex]].CurrentPot
+	for i := 1; i < len(game.s.PlayerNames); i++ {
+		previousPlayerIndex := (game.s.ActivePlayerIndex - i + len(game.s.PlayerNames)) % len(game.s.PlayerNames)
+		if !game.table.s.Players[game.s.PlayerNames[previousPlayerIndex]].HasFolded {
+			return game.table.s.Players[game.s.PlayerNames[previousPlayerIndex]].CurrentPot
 		}
 	}
 	panic("There should be at least two active Players!")
@@ -176,36 +180,36 @@ func (game *Game) nextPlayer() {
 }
 
 func (game *Game) finishRound() {
-	if game.Round == RIVER {
+	if game.s.Round == RIVER {
 		// trigger showdown
 		game.showdown()
 		return
 	}
-	game.ActivePlayerIndex = len(game.PlayerNames) - 1
+	game.s.ActivePlayerIndex = len(game.s.PlayerNames) - 1
 	game.changeActivePlayerToFirstNonFolded()
 	for _, player := range game.table.PlayersList() {
 		player.HasPlayed = false
 	}
 	game.showCommunityCards()
-	game.Round++
+	game.s.Round++
 }
 
 func (game *Game) showdown() {
 	game.determineBestHandForEachPlayer()
 	game.findWinner()
 	game.transferPotToWinner()
-	game.Round = FINISHED
+	game.s.Round = FINISHED
 }
 
 func (game *Game) showCommunityCards() {
-	_, game.Deck = game.Deck.Deal(1)
+	_, game.s.Deck = game.s.Deck.Deal(1)
 	cardsToShow := game.numberOfCardsToShow()
 	game.dealCardsToCommunity(cardsToShow)
 }
 
 func (game *Game) numberOfCardsToShow() int {
 	cardsToShow := 1
-	isFlop := game.Round == PREFLOP
+	isFlop := game.s.Round == PREFLOP
 	if isFlop {
 		cardsToShow = 3
 	}
@@ -213,9 +217,9 @@ func (game *Game) numberOfCardsToShow() int {
 }
 
 func (game *Game) dealCardsToCommunity(cardsToShow int) {
-	newCards, deck := game.Deck.Deal(cardsToShow)
-	game.Deck = deck
-	game.Community = append(game.CommunityCards(), newCards.Cards...)
+	newCards, deck := game.s.Deck.Deal(cardsToShow)
+	game.s.Deck = deck
+	game.s.Community = append(game.CommunityCards(), newCards.Cards...)
 }
 
 func (game *Game) findWinner() {
@@ -230,7 +234,7 @@ func (game *Game) findWinner() {
 			}
 		}
 	}
-	game.WinnerName = &bestPlayer.Name
+	game.s.WinnerName = &bestPlayer.Name
 }
 
 func (game *Game) determineBestHandForEachPlayer() {
@@ -241,7 +245,7 @@ func (game *Game) determineBestHandForEachPlayer() {
 
 func (game *Game) determineBestHandForPlayer(player *Player) {
 	if !player.HasFolded {
-		allCards := append(game.Community, player.Hand...)
+		allCards := append(game.s.Community, player.Hand...)
 		bestHand, bestCombination := game.findBestHand(allCards)
 		player.BestHand = &bestHand
 		player.BestCombination = bestCombination
@@ -280,7 +284,7 @@ func (game *Game) changeActivePlayerToFirstNonFolded() {
 }
 
 func (game *Game) incrementActivePlayerIndex() {
-	game.ActivePlayerIndex = (game.ActivePlayerIndex + 1) % len(game.table.s.Players)
+	game.s.ActivePlayerIndex = (game.s.ActivePlayerIndex + 1) % len(game.table.s.Players)
 }
 
 func (game *Game) isCurrentRoundFinished() bool {
