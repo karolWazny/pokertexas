@@ -46,9 +46,10 @@ func (game *Game) Fold() error {
 	if game.playersInGame() == 1 {
 		// finish game
 		lastActivePlayerIndex := slices.IndexFunc(game.s.PlayerNames, func(player string) bool {
-			return !game.table.players[player].s.HasFolded
+			return !game.table.GetPlayer(player).s.HasFolded
 		})
-		game.s.WinnerName = &game.s.PlayerNames[lastActivePlayerIndex]
+		winnerName := game.getPlayerName(lastActivePlayerIndex)
+		game.s.WinnerName = &winnerName
 		game.s.ActivePlayerIndex = -1
 		game.s.Round = FINISHED
 		game.transferPotToWinner()
@@ -86,7 +87,7 @@ func (game *Game) Winner() (*Player, error) {
 	if game.s.Round != FINISHED {
 		return nil, errors.New("there is no winner before game end")
 	}
-	return game.table.players[*game.s.WinnerName], nil
+	return game.table.GetPlayer(*game.s.WinnerName), nil
 }
 
 func (game *Game) CurrentPlayer() (*Player, error) {
@@ -119,7 +120,7 @@ func (game *Game) GetVisibleGameState() VisibleGameState {
 	visibleGameState := VisibleGameState{}
 	players := make([]TexasPlayerPublicInfo, len(game.s.PlayerNames))
 	for i, player := range game.s.PlayerNames {
-		players[i] = game.table.players[player].GetPublicInfo()
+		players[i] = game.table.GetPlayer(player).GetPublicInfo()
 	}
 	visibleGameState.Players = players
 	activePlayer, e := game.CurrentPlayer()
@@ -128,7 +129,7 @@ func (game *Game) GetVisibleGameState() VisibleGameState {
 		visibleGameState.ActivePlayer = &activePlayerInfo
 	}
 	visibleGameState.Round = game.s.Round
-	visibleGameState.Dealer = game.table.players[game.s.PlayerNames[len(game.s.PlayerNames)-1]].GetPublicInfo()
+	visibleGameState.Dealer = game.getPlayer(len(game.s.PlayerNames) - 1).GetPublicInfo()
 	visibleGameState.Community = game.CommunityCards()
 	if game.s.WinnerName != nil {
 		visibleGameState.Winner = *game.s.WinnerName
@@ -138,18 +139,18 @@ func (game *Game) GetVisibleGameState() VisibleGameState {
 
 func (game *Game) transferPotToWinner() {
 	for _, player := range game.table.players {
-		game.table.players[*game.s.WinnerName].s.Money += player.CurrentPot()
+		game.table.GetPlayer(*game.s.WinnerName).s.Money += player.CurrentPot()
 	}
 }
 
 func (game *Game) unsafeGetCurrentPlayer() *Player {
-	return game.table.players[game.s.PlayerNames[game.s.ActivePlayerIndex]]
+	return game.getPlayer(game.s.ActivePlayerIndex)
 }
 
 func (game *Game) playersInGame() int {
 	playersInGame := 0
 	for _, player := range game.s.PlayerNames {
-		if !game.table.players[player].HasFolded() {
+		if !game.table.GetPlayer(player).HasFolded() {
 			playersInGame++
 		}
 	}
@@ -159,11 +160,19 @@ func (game *Game) playersInGame() int {
 func (game *Game) getPreviousPlayerPot() int64 {
 	for i := 1; i < len(game.s.PlayerNames); i++ {
 		previousPlayerIndex := (game.s.ActivePlayerIndex - i + len(game.s.PlayerNames)) % len(game.s.PlayerNames)
-		if !game.table.players[game.s.PlayerNames[previousPlayerIndex]].HasFolded() {
-			return game.table.players[game.s.PlayerNames[previousPlayerIndex]].CurrentPot()
+		if !game.getPlayer(previousPlayerIndex).HasFolded() {
+			return game.getPlayer(previousPlayerIndex).CurrentPot()
 		}
 	}
 	panic("There should be at least two active players!")
+}
+
+func (game *Game) getPlayerName(index int) string {
+	return game.s.PlayerNames[index]
+}
+
+func (game *Game) getPlayer(index int) *Player {
+	return game.table.GetPlayer(game.getPlayerName(index))
 }
 
 func (game *Game) getCurrentPlayerPot() int64 {

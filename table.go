@@ -19,14 +19,6 @@ type Table struct {
 	players     map[string]*Player
 }
 
-func (t *Table) PlayersList() []*Player {
-	result := make([]*Player, len(t.s.PlayerNames))
-	for i, name := range t.s.PlayerNames {
-		result[i] = t.players[name]
-	}
-	return result
-}
-
 func NewTable(smallBlind int64, bigBlind int64) Table {
 	return Table{
 		players: make(map[string]*Player),
@@ -36,6 +28,14 @@ func NewTable(smallBlind int64, bigBlind int64) Table {
 			DealerIndex: -1,
 		},
 	}
+}
+
+func (t *Table) PlayersList() []*Player {
+	result := make([]*Player, len(t.s.PlayerNames))
+	for i, name := range t.s.PlayerNames {
+		result[i] = t.players[name]
+	}
+	return result
 }
 
 func (t *Table) AddPlayer(player *Player) error {
@@ -83,4 +83,36 @@ func (t *Table) StartGame() Game {
 
 func (t *Table) GetCurrentGame() *Game {
 	return t.currentGame
+}
+
+func (t *Table) DumpState() *SerializableStateDto {
+	players := make(map[string]*PlayerState)
+	for name, player := range t.players {
+		players[name] = player.s
+	}
+	return &SerializableStateDto{
+		Table:   t.s,
+		Game:    t.currentGame.s,
+		Players: players,
+	}
+}
+
+func (t *Table) LoadState(dto *SerializableStateDto) {
+	t.s = dto.Table
+	if dto.Game != nil {
+		t.currentGame = &Game{
+			table: t,
+			s:     dto.Game,
+		}
+	}
+	t.players = make(map[string]*Player)
+	for name, playerState := range dto.Players {
+		t.players[name] = &Player{
+			s: playerState,
+		}
+	}
+}
+
+func (t *Table) GetPlayer(name string) *Player {
+	return t.players[name]
 }

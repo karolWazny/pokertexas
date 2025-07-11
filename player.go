@@ -18,11 +18,11 @@ type PlayerState struct {
 }
 
 type Player struct {
-	s PlayerState
+	s *PlayerState
 }
 
 func NewPlayer(name string, money int64) Player {
-	return Player{s: PlayerState{Name: name, Money: money}}
+	return Player{s: &PlayerState{Name: name, Money: money}}
 }
 
 func (p *Player) GetPublicInfo() TexasPlayerPublicInfo {
